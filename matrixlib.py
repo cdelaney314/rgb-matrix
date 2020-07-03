@@ -3,8 +3,8 @@ import threading
 import time
 import font
 
-delay = 1 / (1*1000)
-#delay = 3
+FRAMES_PER_SECOND = 30
+delay = 1 / (8*FRAMES_PER_SECOND)
 
 class Color:
     def __init__(self, red, green, blue):
