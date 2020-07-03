@@ -2,10 +2,10 @@ import RPi.GPIO as GPIO
 import threading
 import time
 import font
+import math
 
-FRAMES_PER_SECOND = 30
-delay = 1 / (8*FRAMES_PER_SECOND)
-
+#FRAMES_PER_SECOND = 30
+delay = 0.0001
 class Color:
     def __init__(self, red, green, blue):
         self.red = red
@@ -20,7 +20,7 @@ pure_blue = Color(0,0,255)
 navy = Color(0,0,128)
 maroon = Color(128,0,0)
 yellow = Color(255,255,0)
-cyan = Color(255,0,255)
+cyan = Color(0,255,255)
 pink = Color(255,0,255)
 gray = Color(128,128,128)
 white = Color(255,255,255)
@@ -54,7 +54,7 @@ GPIO.setup(c_pin, GPIO.OUT)
 GPIO.setup(latch_pin, GPIO.OUT)
 GPIO.setup(oe_pin, GPIO.OUT)
 
-screen = [[black for x in xrange(32)] for x in xrange(16)]
+screen = [[black for x in range(32)] for y in range(16)]
 
 def clock():
     GPIO.output(clock_pin, 1)
@@ -87,22 +87,34 @@ def set_color_bottom(red_on, green_on, blue_on):
     GPIO.output(blue2_pin, blue_on)
 
 def refresh():
+    # NOTE: should only be called by the daemon thread
     # NOTE: OE is crucial here, it is low-active, so when it is
     # set to 0, the row on the pins shows
-    for i in range(256):
+    refresh_start = time.time()
+    for i in range(1,8):
+    # to stick to convention we'll communicate in 8-bit color, but since
+    # the hardware is slow, we'll really output in 3-bit color
+    # by running a duty-cycle with 7 phases, so an LED can be on for 0-7 phases
+        cycle_start = time.time()
         for row in range(8):
+            # experimental
+            # GPIO.output(oe_pin, 1)
             set_row(row)
-
             for col in range(32):
                 top = screen[row][col]
-                bottom = screen[row][col]
-                set_color_top(top.red > i, top.green > i, top.blue > i)
-                set_color_bottom(bottom.red > i, bottom.green > i, bottom.blue > i)
-    	        clock()
+                bottom = screen[row+8][col]
+                # convert 8-bit to 3-bit color with a right shift
+                set_color_top(top.red>>5 >= i, top.green>>5 >= i, top.blue>>5 >= i)
+                set_color_bottom(bottom.red>>5 >= i, bottom.green>>5 >= i, bottom.blue>>5 >= i)
+                clock()
             latch()
-	        GPIO.output(oe_pin, 0)
+            GPIO.output(oe_pin, 0)
             time.sleep(delay)
             GPIO.output(oe_pin, 1)
+        cycle_elapsed = time.time() - cycle_start
+        #print('cycle ' + str(i) + ' in ' + str(cycle_elapsed) + 's')
+    refresh_elapsed = time.time() -refresh_start
+    #print('refreshed in ' + str(refresh_elapsed) + 's')
 
 # NOTE: all ranges should be inclusive, so 
 # fill_rectangle(0,0,1,1, Color(255,0,0)) should
@@ -129,25 +141,24 @@ def draw_rectangle(x1, y1, x2, y2, color):
 
 def draw_circle(x_center, y_center, radius, color):
     for degree in range(360):
-        x = radius*cos(radians(degree))
-        y = radius*sin(radians(degree))
+        x = radius*math.cos(math.radians(degree))
+        y = radius*math.sin(math.radians(degree))
         screen[y][x] = color
 
 def fill_circle(x_center, y_center, radius, color):
     for degree in range(360):
-        x = radius*cos(radians(degree))
-        y = radius*sin(radians(degree))
-        dr
+        x = radius*math.cos(math.radians(degree))
+        y = radius*math.sin(math.radians(degree))
 
 def write_char(x, y, c, color):
-   bitmap = font.to_bitmap(c)
-   for r in range(7):
-      print(bitmap[r])
-      for c in range(5):
-	if bitmap[r][c] == 1:
-	   s = 'row=' + str(x+c) + '; col=' + str(y+r) + '; color=' + str(color)
-	   print(s) 
-	   set_pixel(x+c, y+r, color)
+    bitmap = font.to_bitmap(c)
+    for r in range(7):
+        print(bitmap[r])
+        for c in range(5):
+            if bitmap[r][c] == 1:
+                s = 'row=' + str(x+c) + '; col=' + str(y+r) + '; color=' + str(color)
+                print(s)
+                set_pixel(x+c, y+r, color)
 
 def write_word(x, y, s, color):
    bitmap = font.to_bitmap(s)
@@ -156,23 +167,26 @@ def write_word(x, y, s, color):
             if 0 <= x+col and x+col < 32 and 0 <= y+row and y+row < 16 and bitmap[row][col]:
                set_pixel(x+col, y+row, color)
 
-def scroll_word(x, y, s, color):
+def scroll_text(x, y, s, color):
    for i in range(5*len(s)):
-      fill_rectangle(x, y, 32, y+7, 0)
+      fill_rectangle(x, y, 31, y+7, black)
       write_word(x-i, y, s, color)
       start = time.time()
       while(time.time() - start < 0.025):
-	refresh()
-      fill_rectangle(x, y, 32, y+7, 0)
+          refresh()
+      fill_rectangle(x, y, 31, y+7, black)
 
 def set_pixel(x, y, color):
     screen[y][x] = color
 
 def daemon_function():
     while True:
-	    refresh()
+        refresh()
 
+
+# fill_rectangle(0,0,31,15,purple)
+# daemon_function()
 # start a seperate thread of execution
 # the daemon flag means it will stop when normal execution stops
-refresher = threading.Thread(target=daemon_function, daemon=True)
-refresher.start()
+# refresher = threading.Thread(target=daemon_function, daemon=True)
+# refresher.start()

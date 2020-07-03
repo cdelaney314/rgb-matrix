@@ -3,7 +3,7 @@
 import os
 import sys
 import json
-import test_display
+import matrixlib
 import pprint
 import requests
 
@@ -33,8 +33,8 @@ def main():
     url = NYT_URL + KEY
     titles = load_nyt_data(url)
     for title in titles:
-	print(title)
-	test_display.scroll_word(0, 4,'       ' + title, 7)
+        print(title)
+        matrixlib.scroll_text(0, 4,'       ' + title, matrixlib.white)
 
 # Main Execution
 
