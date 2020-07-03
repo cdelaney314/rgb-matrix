@@ -1,4 +1,5 @@
 import RPi.GPIO as GPIO
+import threading
 import time
 import font
 
@@ -99,14 +100,44 @@ def refresh():
                 set_color_bottom(bottom.red > i, bottom.green > i, bottom.blue > i)
     	        clock()
             latch()
-	    GPIO.output(oe_pin, 0)
+	        GPIO.output(oe_pin, 0)
             time.sleep(delay)
             GPIO.output(oe_pin, 1)
 
+# NOTE: all ranges should be inclusive, so 
+# fill_rectangle(0,0,1,1, Color(255,0,0)) should
+# draw a 2x2 rectangle in the top left
+
 def fill_rectangle(x1, y1, x2, y2, color):
-    for x in range(x1, x2):
-        for y in range(y1, y2):
+    for x in range(x1, x2+1):
+        for y in range(y1, y2+1):
             screen[y][x] = color
+
+def draw_line(x1, y1, x2, y2, color):
+    slope = (y2-y1) / (x2-x1)
+    for x in range(x1, x2+1):
+        y = int(y1 + slope * (x-x1))
+        screen[y][x] = color
+
+def draw_rectangle(x1, y1, x2, y2, color):
+    for x in range(x1, x2+1):
+        screen[y1][x] = color
+        screen[y2][x] = color
+    for y in range(y1, y2+1):
+        screen[y][x1] = color
+        screen[y][x2] = color
+
+def draw_circle(x_center, y_center, radius, color):
+    for degree in range(360):
+        x = radius*cos(radians(degree))
+        y = radius*sin(radians(degree))
+        screen[y][x] = color
+
+def fill_circle(x_center, y_center, radius, color):
+    for degree in range(360):
+        x = radius*cos(radians(degree))
+        y = radius*sin(radians(degree))
+        dr
 
 def write_char(x, y, c, color):
    bitmap = font.to_bitmap(c)
@@ -137,7 +168,11 @@ def scroll_word(x, y, s, color):
 def set_pixel(x, y, color):
     screen[y][x] = color
 
-fill_rectangle(0,0,32,16,Color(255,0,255))
-#scroll_word(0,0,'It works!', 1)
-while True:
-	refresh()
+def daemon_function():
+    while True:
+	    refresh()
+
+# start a seperate thread of execution
+# the daemon flag means it will stop when normal execution stops
+refresher = threading.Thread(target=daemon_function, daemon=True)
+refresher.start()
