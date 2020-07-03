@@ -11,6 +11,20 @@ class Color:
         self.green = green
         self.blue = blue
 
+# some example colors
+black = Color(0,0,0)
+pure_red = Color(255,0,0)
+pure_green = Color(0,255,0)
+pure_blue = Color(0,0,255)
+navy = Color(0,0,128)
+maroon = Color(128,0,0)
+yellow = Color(255,255,0)
+cyan = Color(255,0,255)
+pink = Color(255,0,255)
+gray = Color(128,128,128)
+white = Color(255,255,255)
+purple = Color(102,0,204)
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 red1_pin = 17
@@ -39,7 +53,6 @@ GPIO.setup(c_pin, GPIO.OUT)
 GPIO.setup(latch_pin, GPIO.OUT)
 GPIO.setup(oe_pin, GPIO.OUT)
 
-black = Color(0,0,0)
 screen = [[black for x in xrange(32)] for x in xrange(16)]
 
 def clock():
